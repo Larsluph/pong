@@ -333,17 +333,28 @@ class Game:
 
         def save_settings():
             data = menu.get_input_data()
+            print(data)
             errors = list()
+            need_to_reload = False
             for k, v in data.items():
+                if k == "WIN_SIZE" and v != "x".join(map(str, self.settings.WIN_SIZE)):
+                    need_to_reload = True
+
                 if isinstance(getattr(self.settings, k), size_tpl):
                     if match := re.match(r"(\d+)x(\d+)", v):
                         setattr(self.settings, k, size_tpl(*map(int, match.groups())))
                     else:
                         errors.append(k)
                 else:
-                    setattr(self.settings, k, v)
+                    if len(v) < 1:
+                        errors.append(k)
+                    else:
+                        setattr(self.settings, k, v)
+
             if errors:
                 return
+            elif need_to_reload:
+                self.last_menu_choice = GameFocus.EXIT
 
             self.settings.save_config()
             menu.close()
