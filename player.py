@@ -56,8 +56,8 @@ class AI(Player):
 
     def update_pos(self):
         y_pos = self.pos[1]
-        self.mov = detect_oob_exclu(self.game.ball_pos[1], y_pos + self.offset, y_pos + self.offset)
+        self.mov = detect_oob_exclu(self.game.ball_pos[1], y_pos + self.offset - 5, y_pos + self.offset + 5)
         super().update_pos()
 
     def on_collision_with_ball(self):
-        self.offset = randint(1, self.settings.PADDLE_SIZE.height)
+        self.offset = randint(5, self.settings.PADDLE_SIZE.height - 5)

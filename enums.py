@@ -20,9 +20,11 @@ class Keys:
 
 class GameFocus(IntEnum):
     EXIT = -1
-    MAIN_MENU = 0
-    PLAY = 1
-    SETTINGS = 2
+    MAIN_MENU = 1
+    PLAY_SOLO = 2  # solo play
+    PLAY_LOCAL = 3  # local multiplayer
+    PLAY_NET = 4  # networking play
+    SETTINGS = 5
 
 
 size_tpl = namedtuple("Size", ("width", "height"))

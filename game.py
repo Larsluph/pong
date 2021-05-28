@@ -1,12 +1,11 @@
 import random
-import re
 
 import pygame
-import pygame_menu
 
-from enums import Colors, Keys, GameFocus, size_tpl
+import menus
+from enums import Colors, GameFocus
 from game_settings import GameSettings
-from utils import add_arrays, detect_oob_exclu, detect_oob_inclu, is_between, threshold_limit
+from utils import add_arrays, detect_oob_exclu, detect_oob_inclu, is_between, threshold_limit, is_key_pressed
 
 pygame.init()
 
@@ -29,11 +28,15 @@ class Game:
 
         while self.last_menu_choice != GameFocus.EXIT:
             if self.last_menu_choice == GameFocus.MAIN_MENU:
-                self.main_menu()
-            elif self.last_menu_choice == GameFocus.PLAY:
-                self.mainloop()
+                menus.main_menu(self)
+            elif self.last_menu_choice == GameFocus.PLAY_SOLO:
+                self.mainloop(1)
+            elif self.last_menu_choice == GameFocus.PLAY_LOCAL:
+                self.mainloop(2)
+            elif self.last_menu_choice == GameFocus.PLAY_NET:
+                raise NotImplementedError
             elif self.last_menu_choice == GameFocus.SETTINGS:
-                self.settings_menu()
+                menus.settings_menu(self)
             else:
                 print("Invalid focus choice!")
                 return
@@ -56,22 +59,8 @@ class Game:
         for player in self.players:
             player.init_pos()
 
-        self.game_tick(False)
-        pygame.time.delay(1000)
-        # self.wait_for_key(None)
-
-    def wait_for_key(self, key: int = None):
-        """
-        loop = True
-        while loop:
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN and key in [None, event.key]:
-                    if key == [None, event.key]:
-                        loop = False
-
+        while not is_key_pressed(None):
             self.game_tick(False)
-        """
-        raise NotImplementedError
 
     def draw_game_scene(self):
         # draw players[0] paddle
@@ -192,11 +181,14 @@ class Game:
 
         add_arrays(self.ball_pos, self.ball_speed)
 
-    def mainloop(self):
+    def mainloop(self, player_nbr: int):
         print("Calling mainloop...")
 
         p1 = Player(1, self)
-        p2 = AI(2, self)
+        if player_nbr == 1:
+            p2 = AI(2, self)
+        else:
+            p2 = Player(2, self)
 
         self.players = [p1, p2]
 
@@ -229,142 +221,6 @@ class Game:
                         self.players[1].mov = 0
 
             self.game_tick()
-
-    def main_menu(self):
-        print("Calling main menu...")
-        cursor = 0
-        title = self.TITLE_FONT.render("PONG", True, Colors.WHITE)
-
-        play_text = self.FONT.render("Play", True, Colors.WHITE)
-        settings_text = self.FONT.render("Settings", True, Colors.WHITE)
-        exit_text = self.FONT.render("Exit", True, Colors.WHITE)
-
-        def format_blit(surface: pygame.Surface, y_pos: float, return_value=None):
-            base = (surface,
-                    (self.settings.WIN_SIZE.width / 2 - surface.get_width() / 2,
-                     self.settings.WIN_SIZE.height * y_pos - surface.get_height() / 2))
-            if return_value:
-                return base + (return_value,)
-            else:
-                return base
-
-        blits = [
-            format_blit(play_text, .6, GameFocus.PLAY),
-            format_blit(settings_text, .7, GameFocus.SETTINGS),
-            format_blit(exit_text, .8, GameFocus.EXIT),
-        ]
-
-        while True:
-            self.window.fill(Colors.BLACK)
-
-            self.window.blit(*format_blit(title, .3))
-            for blit in blits:
-                self.window.blit(*blit[:-1])
-
-            # draw rect around selection
-            pygame.draw.rect(self.window,
-                             Colors.WHITE,
-                             blits[cursor][0].get_rect().move(*blits[cursor][1]).inflate(15, 5),
-                             2)
-            pygame.display.flip()
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key in Keys.EXIT):
-                    self.last_menu_choice = GameFocus.EXIT
-                    return
-                elif event.type == pygame.KEYDOWN:
-                    if event.key in Keys.UP:
-                        cursor -= 1
-                    elif event.key in Keys.DOWN:
-                        cursor += 1
-                    cursor %= len(blits)
-
-                    if event.key in Keys.SELECT:
-                        self.last_menu_choice = blits[cursor][-1]
-                        return
-
-    def settings_menu(self):
-        print("Calling Settings...")
-        self.last_menu_choice = GameFocus.MAIN_MENU
-
-        menu = pygame_menu.Menu("Settings",
-                                *self.settings.WIN_SIZE,
-                                theme=pygame_menu.themes.THEME_DARK,
-                                onclose=pygame_menu.events.CLOSE)
-
-        # WIN_SIZE
-        menu.add.text_input("Resolution: ",
-                            default="x".join(map(str, self.settings.WIN_SIZE)),
-                            textinput_id="WIN_SIZE")
-        # GAME_SPEED
-        menu.add.text_input("FPS: ",
-                            default=self.settings.GAME_SPEED,
-                            input_type=pygame_menu.locals.INPUT_INT,
-                            textinput_id="GAME_SPEED")
-        # PADDLE_SPEED
-        menu.add.text_input("Paddle Speed: ",
-                            default=self.settings.PADDLE_SPEED,
-                            input_type=pygame_menu.locals.INPUT_INT,
-                            textinput_id="PADDLE_SPEED")
-        # PADDLE_SIZE
-        menu.add.text_input("Paddle Size: ",
-                            default="x".join(map(str, self.settings.PADDLE_SIZE)),
-                            textinput_id="PADDLE_SIZE")
-        # BALL_RADIUS
-        menu.add.text_input("Ball Radius: ",
-                            default=self.settings.BALL_RADIUS,
-                            input_type=pygame_menu.locals.INPUT_INT,
-                            textinput_id="BALL_RADIUS")
-        # BALL_BASE_SPEED
-        menu.add.text_input("Ball Base Speed: ",
-                            default=self.settings.BALL_BASE_SPEED,
-                            input_type=pygame_menu.locals.INPUT_INT,
-                            textinput_id="BALL_BASE_SPEED")
-        # BALL_MAX_SPEED
-        menu.add.text_input("Ball Max Speed: ",
-                            default=self.settings.BALL_MAX_SPEED,
-                            input_type=pygame_menu.locals.INPUT_INT,
-                            textinput_id="BALL_MAX_SPEED")
-        # BALL_ACCELERATION
-        menu.add.text_input("Ball Acceleration: ",
-                            default=self.settings.BALL_ACCELERATION,
-                            input_type=pygame_menu.locals.INPUT_FLOAT,
-                            textinput_id="BALL_ACCELERATION").set_margin(0, 25)
-
-        def save_settings():
-            data = menu.get_input_data()
-            print(data)
-            errors = list()
-            need_to_reload = False
-            for k, v in data.items():
-                if k == "WIN_SIZE" and v != "x".join(map(str, self.settings.WIN_SIZE)):
-                    need_to_reload = True
-
-                if isinstance(getattr(self.settings, k), size_tpl):
-                    if match := re.match(r"(\d+)x(\d+)", v):
-                        setattr(self.settings, k, size_tpl(*map(int, match.groups())))
-                    else:
-                        errors.append(k)
-                else:
-                    if len(v) < 1:
-                        errors.append(k)
-                    else:
-                        setattr(self.settings, k, v)
-
-            if errors:
-                return
-            elif need_to_reload:
-                self.last_menu_choice = GameFocus.EXIT
-
-            self.settings.save_config()
-            menu.close()
-
-        # Save & close
-        menu.add.button("Save & Close", save_settings)
-        # Close without saving
-        menu.add.button("Close without saving", pygame_menu.events.CLOSE)
-
-        menu.mainloop(self.window)
 
 
 class Player:

@@ -1,4 +1,6 @@
-from typing import Iterable
+from typing import Iterable, Union
+
+import pygame
 
 
 def add_arrays(base: list, *others: Iterable):
@@ -34,3 +36,16 @@ def is_between(lower, value, upper):
 
 def get_attributes(obj):
     return (attr for attr in dir(obj) if not attr.startswith("_") and attr[0].isupper())
+
+
+def is_key_pressed(key: Union[None, int, Iterable] = None) -> bool:
+    for event in pygame.event.get():
+        if event.type != pygame.KEYDOWN:
+            continue
+        if (
+            (hasattr(key, "__iter__") and event.key in key)
+            or (isinstance(key, int) and event.key == key)
+            or key is None
+        ):
+            return True
+    return False
